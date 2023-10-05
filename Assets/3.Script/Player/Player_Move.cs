@@ -8,12 +8,12 @@ public class Player_Move : MonoBehaviour
     SpriteRenderer sprite; //좌우 반전을 위해 선언
     Animator anim; // 애니메이션 변경을 위해 선언
 
-
+    public GameManager gamemanager;
     [SerializeField] private float MaxSpeed;
     [SerializeField] private float jump_Power;
 
 
-    private int Jump_Count = 0;
+    //private int Jump_Count = 0;
     private void Awake()
     {
         rigid = GetComponent<Rigidbody2D>();
@@ -24,7 +24,7 @@ public class Player_Move : MonoBehaviour
     private void Update()
     {
         //점프
-        if (Input.GetButtonDown("Jump")) // 속도 제어 멈춰 설때 밀리는 정도
+        if (Input.GetButtonDown("Jump")&& !anim.GetBool("isJump")) // 속도 제어 멈춰 설때 밀리는 정도 &&!anim.GetBool("isJump")점프 상태가 아닐 때
         {
             //normalized단위를 구할 때 쓴다 +, -를 알 수 있다.
             rigid.AddForce(Vector2.up * jump_Power, ForceMode2D.Impulse);
@@ -39,7 +39,7 @@ public class Player_Move : MonoBehaviour
         }
 
         //방향전환
-        if (Input.GetButtonDown("Horizontal"))
+        if (Input.GetButton("Horizontal"))//문워크를 할 때가 있음 GetButtondown -> GetButton로 수정
             sprite.flipX = Input.GetAxisRaw("Horizontal") == -1;
 
 
@@ -74,15 +74,112 @@ public class Player_Move : MonoBehaviour
         }
 
         //점프 확인
-        Debug.DrawRay(rigid.position, Vector3.down, new Color(0,1,0));
-
-        //RaycastHit2D Ray에 닿은 오브젝트
-        RaycastHit2D rayHit = Physics2D.Raycast(rigid.position, Vector3.down, 1);
-
-        if(rayHit.collider != null)
+        if(rigid.velocity.y < 0) //플레이어가 떨어 질때만 
         {
-            Debug.Log(rayHit.collider.name);
+            Debug.DrawRay(rigid.position, Vector3.down, new Color(0, 1, 0));
+
+            //RaycastHit2D Ray에 닿은 오브젝트
+            RaycastHit2D rayHit = Physics2D.Raycast(rigid.position, Vector3.down, 1, LayerMask.GetMask("Platform"));
+            //GetMask("") 레이어 이름에 해당하는 정수값을 리턴하는 함수
+            if (rayHit.collider != null)
+            {
+                if (rayHit.distance < 0.8f) // distance - Ray에 닿았을 때의 거리
+                    anim.SetBool("isJump", false);
+            }
         }
+
+       
+    }
+    //충돌 
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Enemy"))
+        {
+            //위에서 접촉했을 때는 데미지를 준다
+            if (rigid.velocity.y < 0 && transform.position.y > collision.transform.position.y)
+            {
+                OnAttack(collision.transform);
+            }
+            else
+            {
+                //아니라면 데미지를 입는다
+                OnDamged(collision.transform.position);
+            }
+        }
+    }
+
+    //게임 오브젝트가 닿았을 때 작동하는 코드 - 동전 먹기, 결승선
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("item"))
+        {
+            //동전 점수 획득
+            bool isBronze = collision.gameObject.name.Contains("Bronze");
+            bool isSilver = collision.gameObject.name.Contains("Silver");
+            bool isGold = collision.gameObject.name.Contains("Gold");
+
+            if(isBronze)
+            {
+                gamemanager.stagePoint += 50;
+            }
+            else if (isSilver)
+            {
+                gamemanager.stagePoint += 100;
+            }
+            else if (isGold)
+            {
+                gamemanager.stagePoint += 300;
+            }
+            
+            //닿은 오브젝트 삭제
+            collision.gameObject.SetActive(false);
+        }
+        else if(collision.gameObject.CompareTag("Finish"))
+        {
+            gamemanager.NextStage();
+        }
+    }
+
+
+    //공격함수
+    void OnAttack(Transform enemy)
+    {
+        // 점수 획득
+        gamemanager.stagePoint += 100;
+
+        //적을 밟았을 때 뛰어 오르기
+        rigid.AddForce(Vector2.up * 6, ForceMode2D.Impulse);
+        // 적 죽음
+        Enemy_Move enmey_move = enemy.GetComponent<Enemy_Move>();
+        enmey_move.OnDamaged();
+    }
+
+
+
+    //무적시간
+    void OnDamged(Vector2 targetPos)
+    {
+        //레이어 변경
+        gameObject.layer = 9; //레이어를 변경 9번으로 변경한다
+        //피격 이펙트 
+        sprite.color = new Color(1, 1, 1, 0.4f);
+        //피격 밀림
+        int dirc = transform.position.x - targetPos.x > 0 ? 1 : -1;
+        rigid.AddForce(new Vector2(dirc, 1)*7,ForceMode2D.Impulse);
+
+        //피격애니메이션
+        anim.SetTrigger("doDamaged");
+
+
+        Invoke("OffDamaged", 1.5f);
+    }
+
+    void OffDamaged()
+    {
+        gameObject.layer = 8;
+        sprite.color = new Color(1, 1, 1, 1);
+
+
     }
 
 }
