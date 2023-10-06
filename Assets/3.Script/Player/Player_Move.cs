@@ -7,10 +7,24 @@ public class Player_Move : MonoBehaviour
     Rigidbody2D rigid; //리지드 바디이동을 위해 선언
     SpriteRenderer sprite; //좌우 반전을 위해 선언
     Animator anim; // 애니메이션 변경을 위해 선언
+    CapsuleCollider2D capsulcollider;//죽었을때 비활성화를 외해서
+    AudioSource audioSource;// 오디오 소스 가져오기
+
 
     public GameManager gamemanager;
+    public AudioClip audioJump;
+    public AudioClip audioAttack;
+    public AudioClip audioDamaged;
+    public AudioClip audioItem;
+    public AudioClip audioDie;
+    public AudioClip audioFinish;
+
+
+
     [SerializeField] private float MaxSpeed;
     [SerializeField] private float jump_Power;
+
+    
 
 
     //private int Jump_Count = 0;
@@ -19,7 +33,37 @@ public class Player_Move : MonoBehaviour
         rigid = GetComponent<Rigidbody2D>();
         sprite = GetComponent<SpriteRenderer>();
         anim = GetComponent<Animator>();
+        capsulcollider = GetComponent<CapsuleCollider2D>();
+        audioSource = GetComponent<AudioSource>();
+
     }
+
+    void PlaySound(string action)
+    {
+        switch (action)
+        {
+            case "JUMP":
+                audioSource.clip = audioJump;
+                break;
+            case "ATTACK":
+                audioSource.clip = audioAttack;
+                break;
+            case "DAMAGED":
+                audioSource.clip = audioDamaged;
+                break;
+            case "ITEM":
+                audioSource.clip = audioItem;
+                break;
+            case "DIE":
+                audioSource.clip = audioDie;
+                break;
+            case "FINISH":
+                audioSource.clip = audioFinish;
+                break;
+        }
+        audioSource.Play();
+    }
+
 
     private void Update()
     {
@@ -29,6 +73,8 @@ public class Player_Move : MonoBehaviour
             //normalized단위를 구할 때 쓴다 +, -를 알 수 있다.
             rigid.AddForce(Vector2.up * jump_Power, ForceMode2D.Impulse);
             anim.SetBool("isJump", true); // 점프로 애니메이션 변경
+
+            PlaySound("JUMP");
         }
 
 
@@ -117,8 +163,8 @@ public class Player_Move : MonoBehaviour
             bool isBronze = collision.gameObject.name.Contains("Bronze");
             bool isSilver = collision.gameObject.name.Contains("Silver");
             bool isGold = collision.gameObject.name.Contains("Gold");
-
-            if(isBronze)
+            PlaySound("ITEM");
+            if (isBronze)
             {
                 gamemanager.stagePoint += 50;
             }
@@ -136,6 +182,8 @@ public class Player_Move : MonoBehaviour
         }
         else if(collision.gameObject.CompareTag("Finish"))
         {
+            Debug.Log("피니쉬");
+            PlaySound("FINISH");
             gamemanager.NextStage();
         }
     }
@@ -146,7 +194,7 @@ public class Player_Move : MonoBehaviour
     {
         // 점수 획득
         gamemanager.stagePoint += 100;
-
+        PlaySound("ATTACK");
         //적을 밟았을 때 뛰어 오르기
         rigid.AddForce(Vector2.up * 6, ForceMode2D.Impulse);
         // 적 죽음
@@ -159,6 +207,9 @@ public class Player_Move : MonoBehaviour
     //무적시간
     void OnDamged(Vector2 targetPos)
     {
+        PlaySound("DAMAGED");
+        //체력에 피해를 입음
+        gamemanager.HpDown();
         //레이어 변경
         gameObject.layer = 9; //레이어를 변경 9번으로 변경한다
         //피격 이펙트 
@@ -180,6 +231,26 @@ public class Player_Move : MonoBehaviour
         sprite.color = new Color(1, 1, 1, 1);
 
 
+    }
+
+    //죽음
+    public void OnDie()
+    {
+        //피격 모션
+        sprite.color = new Color(1, 1, 1, 0.4f);
+        //뒤로 뒤집는 모션
+        sprite.flipY = true;
+        //콜라이더 비활성화 - 충돌이나 모든 것을 무시 
+        capsulcollider.enabled = false;
+        //죽었을 때 위로 살짝 뜸
+        rigid.AddForce(Vector2.up * 5, ForceMode2D.Impulse);
+        //5초 뒤에 시체가 비활성화
+    }
+
+
+    public void VelocityZero()
+    {
+        rigid.velocity = Vector2.zero;
     }
 
 }
