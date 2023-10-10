@@ -196,7 +196,7 @@ public class Player_Move : MonoBehaviour
         gamemanager.stagePoint += 100;
         PlaySound("ATTACK");
         //적을 밟았을 때 뛰어 오르기
-        rigid.AddForce(Vector2.up * 6, ForceMode2D.Impulse);
+        rigid.AddForce(Vector2.up * 10, ForceMode2D.Impulse);
         // 적 죽음
         Enemy_Move enmey_move = enemy.GetComponent<Enemy_Move>();
         enmey_move.OnDamaged();
